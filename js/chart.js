@@ -8,107 +8,76 @@ const INDEX_NAMES = {
     'GC=F': 'XAUUSD (Vàng)'
 };
 
-// Hàm tính toán ngày
+// ── Date helpers ──────────────────────────────────────────────
+
 function getDateRange(period) {
     const endDate = new Date();
     const startDate = new Date();
 
     switch (period) {
-        case '1w':
-            startDate.setDate(endDate.getDate() - 7);
-            break;
-        case '1m':
-            startDate.setMonth(endDate.getMonth() - 1);
-            break;
-        case '3m':
-            startDate.setMonth(endDate.getMonth() - 3);
-            break;
-        case '6m':
-            startDate.setMonth(endDate.getMonth() - 6);
-            break;
-        case 'ytd':
-            startDate.setMonth(0);
-            startDate.setDate(1);
-            break;
+        case '1w':  startDate.setDate(endDate.getDate() - 7);    break;
+        case '1m':  startDate.setMonth(endDate.getMonth() - 1);  break;
+        case '3m':  startDate.setMonth(endDate.getMonth() - 3);  break;
+        case '6m':  startDate.setMonth(endDate.getMonth() - 6);  break;
+        case 'ytd': startDate.setMonth(0); startDate.setDate(1); break;
     }
 
-    return {
-        start: formatDate(startDate),
-        end: formatDate(endDate)
-    };
+    return { start: formatDate(startDate), end: formatDate(endDate) };
 }
 
 function formatDate(date) {
-    const year = date.getFullYear();
+    const year  = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const day   = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
 
-// Xử lý khoảng thời gian nhanh
-document.querySelectorAll('.period-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-
-        const period = this.dataset.period;
-        const range = getDateRange(period);
-
-        document.getElementById('customStart').value = range.start;
-        document.getElementById('customEnd').value = range.end;
-    });
-});
-
-// Set ngày mặc định
 function initializeDefaultDates() {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(endDate.getMonth() - 1);
 
     document.getElementById('customStart').value = formatDate(startDate);
-    document.getElementById('customEnd').value = formatDate(endDate);
+    document.getElementById('customEnd').value   = formatDate(endDate);
 }
 
-// Hiển thị lỗi
+// ── UI helpers ────────────────────────────────────────────────
+
 function showError(message) {
     const errorEl = document.getElementById('error');
     errorEl.textContent = message;
     errorEl.classList.add('active');
-    setTimeout(() => {
-        errorEl.classList.remove('active');
-    }, 6000);
+    setTimeout(() => errorEl.classList.remove('active'), 6000);
 }
 
-// Lấy range string cho Yahoo Finance v8
-function getRangeParam(startDate, endDate) {
-    const diffMs = new Date(endDate) - new Date(startDate);
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 7) return '5d';
-    if (diffDays <= 32) return '1mo';
-    if (diffDays <= 95) return '3mo';
-    if (diffDays <= 185) return '6mo';
-    if (diffDays <= 370) return '1y';
-    return '2y';
+function resetForm() {
+    document.getElementById('indexSelect').value = '^GSPC';
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('chartContainer').classList.remove('active');
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('statsSecondary').style.display = 'none';
+    document.getElementById('error').classList.remove('active');
+    if (chart) { chart.destroy(); chart = null; }
+    initializeDefaultDates();
 }
 
-// Lấy dữ liệu từ Yahoo Finance v8 qua CORS proxy
+// ── Fetch & render ────────────────────────────────────────────
+
 async function fetchChartData() {
-    const index = document.getElementById('indexSelect').value;
+    const index     = document.getElementById('indexSelect').value;
     const startDate = document.getElementById('customStart').value;
-    const endDate = document.getElementById('customEnd').value;
+    const endDate   = document.getElementById('customEnd').value;
 
     if (!startDate || !endDate) {
         showError('Vui lòng chọn khoảng thời gian');
         return;
     }
-
     if (new Date(startDate) > new Date(endDate)) {
         showError('Ngày bắt đầu không được lớn hơn ngày kết thúc');
         return;
     }
 
-    const loadingEl = document.getElementById('loading');
+    const loadingEl      = document.getElementById('loading');
     const chartContainer = document.getElementById('chartContainer');
     loadingEl.classList.add('active');
     chartContainer.classList.remove('active');
@@ -128,26 +97,26 @@ async function fetchChartData() {
         const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error('Proxy request failed');
 
-        const data = await response.json();
-
+        const data   = await response.json();
         const result = data?.chart?.result?.[0];
         if (!result) throw new Error('No data returned');
 
-        const timestamps = result.timestamp;
+        const timestamps  = result.timestamp;
         const closePrices = result.indicators?.quote?.[0]?.close;
-        const volumes = result.indicators?.quote?.[0]?.volume;
+        const volumes     = result.indicators?.quote?.[0]?.volume;
 
         if (!timestamps || !closePrices || timestamps.length === 0) {
             showError('Không có dữ liệu cho khoảng thời gian này');
             return;
         }
 
-        // Parse toàn bộ dữ liệu (bao gồm 70 ngày padding), ghi nhận vị trí bắt đầu startDate
-        const allDates = [];
-        const allPrices = [];
+        // Parse toàn bộ (kể cả 70 ngày padding), ghi vị trí bắt đầu startDate
+        const allDates   = [];
+        const allPrices  = [];
         const allVolData = [];
-        const startTs = new Date(startDate).getTime();
-        let sliceIdx = 0;
+        const startTs    = new Date(startDate).getTime();
+        let sliceIdx     = 0;
+
         for (let i = 0; i < timestamps.length; i++) {
             if (closePrices[i] !== null && closePrices[i] !== undefined) {
                 const d = new Date(timestamps[i] * 1000);
@@ -163,16 +132,16 @@ async function fetchChartData() {
             return;
         }
 
-        // Tính MA trên toàn bộ (kể cả phần padding) để đường MA đầy đủ ngay từ điểm đầu
+        // Tính MA trên toàn bộ để đường MA đầy đủ ngay từ điểm đầu
         const allMa20 = calcMA(allPrices, 20);
         const allMa50 = calcMA(allPrices, 50);
 
-        // Slice chỉ lấy phần từ startDate trở đi để hiển thị
-        const dates = allDates.slice(sliceIdx);
-        const prices = allPrices.slice(sliceIdx);
+        // Slice chỉ lấy phần từ startDate để hiển thị
+        const dates   = allDates.slice(sliceIdx);
+        const prices  = allPrices.slice(sliceIdx);
         const volData = allVolData.slice(sliceIdx);
-        const ma20 = allMa20.slice(sliceIdx);
-        const ma50 = allMa50.slice(sliceIdx);
+        const ma20    = allMa20.slice(sliceIdx);
+        const ma50    = allMa50.slice(sliceIdx);
 
         if (prices.length === 0) {
             showError('Không có dữ liệu hợp lệ cho khoảng thời gian này');
@@ -180,29 +149,27 @@ async function fetchChartData() {
         }
 
         // Thống kê
-        const currentPrice = prices[prices.length - 1];
-        const highPrice = Math.max(...prices);
-        const lowPrice = Math.min(...prices);
-        const startPrice = prices[0];
-        const changePercent = ((currentPrice - startPrice) / startPrice * 100).toFixed(2);
-        const changeColor = changePercent >= 0 ? '#10b981' : '#ef4444';
+        const currentPrice   = prices[prices.length - 1];
+        const highPrice      = Math.max(...prices);
+        const lowPrice       = Math.min(...prices);
+        const changePercent  = ((currentPrice - prices[0]) / prices[0] * 100).toFixed(2);
+        const changeColor    = changePercent >= 0 ? '#10b981' : '#ef4444';
 
         document.getElementById('currentPrice').textContent = currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2 });
-        document.getElementById('highPrice').textContent = highPrice.toLocaleString('en-US', { minimumFractionDigits: 2 });
-        document.getElementById('lowPrice').textContent = lowPrice.toLocaleString('en-US', { minimumFractionDigits: 2 });
+        document.getElementById('highPrice').textContent    = highPrice.toLocaleString('en-US', { minimumFractionDigits: 2 });
+        document.getElementById('lowPrice').textContent     = lowPrice.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
         const changeEl = document.getElementById('changePercent');
         changeEl.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent}%`;
         changeEl.style.color = changeColor;
 
-        const priceRange = ((highPrice - lowPrice) / lowPrice * 100).toFixed(2);
-        document.getElementById('priceRange').textContent = `${priceRange}%`;
+        document.getElementById('priceRange').textContent = `${((highPrice - lowPrice) / lowPrice * 100).toFixed(2)}%`;
 
-        const avgVol = volData.reduce((a, b) => a + b, 0) / volData.length;
+        const avgVol   = volData.reduce((a, b) => a + b, 0) / volData.length;
         const avgVolEl = document.getElementById('avgVolume');
-        if (avgVol >= 1e9) avgVolEl.textContent = (avgVol / 1e9).toFixed(2) + 'B';
+        if (avgVol >= 1e9)      avgVolEl.textContent = (avgVol / 1e9).toFixed(2) + 'B';
         else if (avgVol >= 1e6) avgVolEl.textContent = (avgVol / 1e6).toFixed(2) + 'M';
-        else avgVolEl.textContent = Math.round(avgVol).toLocaleString('en-US');
+        else                    avgVolEl.textContent = Math.round(avgVol).toLocaleString('en-US');
 
         document.getElementById('stats').style.display = 'grid';
         document.getElementById('statsSecondary').style.display = 'grid';
@@ -218,7 +185,6 @@ async function fetchChartData() {
     }
 }
 
-// Tính đường trung bình động
 function calcMA(prices, period) {
     return prices.map((_, i) =>
         i < period - 1 ? null : parseFloat(
@@ -227,17 +193,13 @@ function calcMA(prices, period) {
     );
 }
 
-// Vẽ biểu đồ
 function drawChart(dates, prices, volData, label, ma20, ma50) {
     const ctx = document.getElementById('myChart').getContext('2d');
-
-    if (chart) {
-        chart.destroy();
-    }
+    if (chart) chart.destroy();
 
     const isPositive = prices[prices.length - 1] >= prices[0];
-    const color = isPositive ? '#10b981' : '#ef4444';
-    const bgColor = isPositive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)';
+    const color      = isPositive ? '#10b981' : '#ef4444';
+    const bgColor    = isPositive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)';
 
     chart = new Chart(ctx, {
         data: {
@@ -254,45 +216,24 @@ function drawChart(dates, prices, volData, label, ma20, ma50) {
                     barPercentage: 0.9
                 },
                 {
-                    type: 'line',
-                    label: 'MA20',
-                    data: ma20,
-                    borderColor: '#f59e0b',
-                    borderWidth: 1.5,
-                    pointRadius: 0,
-                    fill: false,
-                    tension: 0.3,
-                    yAxisID: 'y',
-                    order: 1,
-                    spanGaps: false
+                    type: 'line', label: 'MA20', data: ma20,
+                    borderColor: '#f59e0b', borderWidth: 1.5,
+                    pointRadius: 0, fill: false, tension: 0.3,
+                    yAxisID: 'y', order: 1, spanGaps: false
                 },
                 {
-                    type: 'line',
-                    label: 'MA50',
-                    data: ma50,
-                    borderColor: '#3b82f6',
-                    borderWidth: 1.5,
-                    pointRadius: 0,
-                    fill: false,
-                    tension: 0.3,
-                    yAxisID: 'y',
-                    order: 1,
-                    spanGaps: false
+                    type: 'line', label: 'MA50', data: ma50,
+                    borderColor: '#3b82f6', borderWidth: 1.5,
+                    pointRadius: 0, fill: false, tension: 0.3,
+                    yAxisID: 'y', order: 1, spanGaps: false
                 },
                 {
-                    type: 'line',
-                    label: label,
-                    data: prices,
-                    borderColor: color,
-                    backgroundColor: bgColor,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
+                    type: 'line', label: label, data: prices,
+                    borderColor: color, backgroundColor: bgColor,
+                    borderWidth: 2, fill: true, tension: 0.3,
+                    pointRadius: 0, pointHoverRadius: 5,
                     pointBackgroundColor: color,
-                    yAxisID: 'y',
-                    order: 1
+                    yAxisID: 'y', order: 1
                 }
             ]
         },
@@ -316,7 +257,7 @@ function drawChart(dates, prices, volData, label, ma20, ma50) {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
-                        label: function (context) {
+                        label(context) {
                             if (context.dataset.yAxisID === 'yVol') {
                                 const val = context.parsed.y;
                                 if (val >= 1e9) return ` KL: ${(val / 1e9).toFixed(2)}B`;
@@ -333,9 +274,7 @@ function drawChart(dates, prices, volData, label, ma20, ma50) {
                     beginAtZero: false,
                     position: 'left',
                     ticks: {
-                        callback: function (value) {
-                            return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 0 });
-                        },
+                        callback: (value) => '$' + value.toLocaleString('en-US', { minimumFractionDigits: 0 }),
                         color: '#666'
                     },
                     grid: { color: 'rgba(0,0,0,0.05)' }
@@ -346,7 +285,7 @@ function drawChart(dates, prices, volData, label, ma20, ma50) {
                     max: Math.max(...volData) * 4,
                     grid: { display: false },
                     ticks: {
-                        callback: function (value) {
+                        callback(value) {
                             if (value >= 1e9) return (value / 1e9).toFixed(0) + 'B';
                             if (value >= 1e6) return (value / 1e6).toFixed(0) + 'M';
                             return value;
@@ -357,45 +296,24 @@ function drawChart(dates, prices, volData, label, ma20, ma50) {
                 },
                 x: {
                     grid: { display: false },
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 0,
-                        color: '#666',
-                        maxTicksLimit: 12
-                    }
+                    ticks: { maxRotation: 45, minRotation: 0, color: '#666', maxTicksLimit: 12 }
                 }
             },
-            interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
-            }
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     });
 }
 
+// ── Event listeners ───────────────────────────────────────────
 
-// Reset form
-function resetForm() {
-    document.getElementById('indexSelect').value = '^GSPC';
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('chartContainer').classList.remove('active');
-    document.getElementById('stats').style.display = 'none';
-    document.getElementById('statsSecondary').style.display = 'none';
-    document.getElementById('error').classList.remove('active');
-    if (chart) { chart.destroy(); chart = null; }
-    initializeDefaultDates();
-}
-
-// Chuyển tab
-function switchTab(name) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        if (b.getAttribute('onclick') === `switchTab('${name}')`) b.classList.add('active');
+document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const range = getDateRange(this.dataset.period);
+        document.getElementById('customStart').value = range.start;
+        document.getElementById('customEnd').value   = range.end;
     });
-}
+});
 
-// Khởi tạo
 window.addEventListener('load', initializeDefaultDates);

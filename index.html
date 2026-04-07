@@ -4,283 +4,195 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NISA - Theo Dõi Chỉ Số Tài Chính</title>
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-            font-size: 2.5em;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        label {
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
-
-        select, input {
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: border-color 0.3s;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            grid-column: 1 / -1;
-        }
-
-        button {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        button.secondary {
-            background: #6c757d;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
-            margin-bottom: 10px;
-            display: none;
-        }
-
-        .chart-container.active {
-            display: block;
-        }
-
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .stat-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-
-        .stat-label {
-            color: #999;
-            font-size: 0.85em;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            color: #333;
-            font-size: 1.3em;
-            font-weight: 600;
-        }
-
-        .loading {
-            text-align: center;
-            color: #667eea;
-            font-size: 1.1em;
-            display: none;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .error.active {
-            display: block;
-        }
-
-        .time-period-buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .period-btn {
-            padding: 10px;
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s;
-        }
-
-        .period-btn:hover {
-            border-color: #667eea;
-        }
-
-        .period-btn.active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        @media (max-width: 768px) {
-            .controls {
-                grid-template-columns: 1fr;
-            }
-
-            .time-period-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .buttons {
-                grid-template-columns: 1fr;
-            }
-
-            h1 {
-                font-size: 1.8em;
-            }
-        }
-    </style>
 </head>
 <body>
     <div class="container">
         <h1>📈 NISA - Theo Dõi Chỉ Số Tài Chính</h1>
 
-        <div class="error" id="error"></div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('chart')">Biểu Đồ</button>
+            <button class="tab-btn" onclick="switchTab('guide')">Giải Thích Chỉ Số</button>
+        </div>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="indexSelect">Chọn Chỉ Số:</label>
-                <select id="indexSelect">
-                    <option value="^GSPC">SP500 (S&P 500)</option>
-                    <option value="^N225">Nikkei 225</option>
-                </select>
-            </div>
+        <!-- ── Tab: Biểu đồ ── -->
+        <div class="tab-panel active" id="tab-chart">
 
-            <div class="control-group">
-                <label>Khoảng Thời Gian Nhanh:</label>
-                <div class="time-period-buttons" style="grid-template-columns: repeat(5, 1fr);">
-                    <button class="period-btn" data-period="1w">1 Tuần</button>
-                    <button class="period-btn" data-period="1m">1 Tháng</button>
-                    <button class="period-btn" data-period="3m">3 Tháng</button>
-                    <button class="period-btn" data-period="6m">6 Tháng</button>
-                    <button class="period-btn" data-period="ytd">YTD</button>
+            <div class="error" id="error"></div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="indexSelect">Chọn Chỉ Số:</label>
+                    <select id="indexSelect">
+                        <option value="^GSPC">SP500 (S&P 500)</option>
+                        <option value="^N225">Nikkei 225</option>
+                        <option value="ACWI">MSCI ACWI</option>
+                        <option value="EEM">MSCI Emerging Markets</option>
+                        <option value="GC=F">XAUUSD (Vàng)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Khoảng Thời Gian Nhanh:</label>
+                    <div class="time-period-buttons" style="grid-template-columns: repeat(5, 1fr);">
+                        <button class="period-btn" data-period="1w">1 Tuần</button>
+                        <button class="period-btn" data-period="1m">1 Tháng</button>
+                        <button class="period-btn" data-period="3m">3 Tháng</button>
+                        <button class="period-btn" data-period="6m">6 Tháng</button>
+                        <button class="period-btn" data-period="ytd">YTD</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="customStart">Ngày Bắt Đầu (Tùy Chỉnh):</label>
+                    <input type="date" id="customStart">
+                </div>
+
+                <div class="control-group">
+                    <label for="customEnd">Ngày Kết Thúc (Tùy Chỉnh):</label>
+                    <input type="date" id="customEnd">
+                </div>
+
+                <div class="buttons">
+                    <button onclick="fetchChartData()">Xem Biểu Đồ</button>
+                    <button class="secondary" onclick="resetForm()">Reset</button>
                 </div>
             </div>
 
-            <div class="control-group">
-                <label for="customStart">Ngày Bắt Đầu (Tùy Chỉnh):</label>
-                <input type="date" id="customStart">
+            <div class="loading" id="loading">⏳ Đang tải dữ liệu...</div>
+
+            <div class="chart-container" id="chartContainer">
+                <canvas id="myChart"></canvas>
             </div>
 
-            <div class="control-group">
-                <label for="customEnd">Ngày Kết Thúc (Tùy Chỉnh):</label>
-                <input type="date" id="customEnd">
+            <div class="stats" id="stats" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-label">Giá Hiện Tại</div>
+                    <div class="stat-value" id="currentPrice">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Giá Cao Nhất</div>
+                    <div class="stat-value" id="highPrice">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Giá Thấp Nhất</div>
+                    <div class="stat-value" id="lowPrice">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Thay Đổi (%)</div>
+                    <div class="stat-value" id="changePercent">-</div>
+                </div>
             </div>
 
-            <div class="buttons">
-                <button onclick="fetchChartData()">Xem Biểu Đồ</button>
-                <button class="secondary" onclick="resetForm()">Reset</button>
+            <div class="stats-secondary" id="statsSecondary" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-label">Biên Độ Giá (%)</div>
+                    <div class="stat-value" id="priceRange">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">KL Trung Bình/Ngày</div>
+                    <div class="stat-value" id="avgVolume">-</div>
+                </div>
             </div>
-        </div>
 
-        <div class="loading" id="loading">⏳ Đang tải dữ liệu...</div>
+        </div><!-- end tab-chart -->
 
-        <div class="chart-container" id="chartContainer">
-            <canvas id="myChart"></canvas>
-        </div>
+        <!-- ── Tab: Giải thích chỉ số ── -->
+        <div class="tab-panel" id="tab-guide">
 
+            <div class="guide-section">
+                <h2>Các Chỉ Số Theo Dõi</h2>
+                <div class="guide-grid">
+                    <div class="guide-card sp">
+                        <div class="guide-card-title">S&P 500 (^GSPC)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Mỹ</span><br>
+                            Rổ 500 công ty lớn nhất niêm yết trên sàn Mỹ. Được coi là thước đo chuẩn của thị trường chứng khoán Hoa Kỳ và nền kinh tế toàn cầu.
+                        </div>
+                    </div>
+                    <div class="guide-card nk">
+                        <div class="guide-card-title">Nikkei 225 (^N225)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Nhật Bản</span><br>
+                            225 cổ phiếu blue-chip hàng đầu Nhật Bản. Phản ánh sức khoẻ nền kinh tế Nhật và thường bị ảnh hưởng bởi tỷ giá USD/JPY.
+                        </div>
+                    </div>
+                    <div class="guide-card acwi">
+                        <div class="guide-card-title">MSCI ACWI (ACWI)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Toàn cầu</span><br>
+                            ETF bao gồm ~2.900 cổ phiếu từ 47 quốc gia (cả phát triển lẫn mới nổi). Đại diện cho ~85% vốn hoá thị trường chứng khoán toàn thế giới.
+                        </div>
+                    </div>
+                    <div class="guide-card em">
+                        <div class="guide-card-title">MSCI Emerging Markets (EEM)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Thị trường mới nổi</span><br>
+                            ETF theo dõi cổ phiếu tại các thị trường mới nổi: Trung Quốc, Ấn Độ, Brazil, Đài Loan... Biến động cao hơn ACWI, tiềm năng tăng trưởng lớn hơn.
+                        </div>
+                    </div>
+                    <div class="guide-card gold">
+                        <div class="guide-card-title">XAUUSD – Vàng (GC=F)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Hàng hoá</span><br>
+                            Giá vàng tính bằng USD/oz. Thường tăng khi bất ổn kinh tế/địa chính trị, lạm phát cao hoặc USD yếu. Là tài sản trú ẩn an toàn truyền thống.
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="stats" id="stats" style="display: none;">
-            <div class="stat-card">
-                <div class="stat-label">Giá Hiện Tại</div>
-                <div class="stat-value" id="currentPrice">-</div>
+            <div class="guide-section">
+                <h2>Các Đường Kỹ Thuật Trên Biểu Đồ</h2>
+                <div class="guide-grid">
+                    <div class="guide-card ma20">
+                        <div class="guide-card-title">MA20 — Đường màu vàng</div>
+                        <div class="guide-card-body">
+                            Trung bình giá đóng cửa của <strong>20 phiên</strong> gần nhất. Phản ánh xu hướng ngắn hạn. Giá vượt MA20 thường là tín hiệu tích cực ngắn hạn.
+                        </div>
+                    </div>
+                    <div class="guide-card ma50">
+                        <div class="guide-card-title">MA50 — Đường màu xanh dương</div>
+                        <div class="guide-card-body">
+                            Trung bình giá đóng cửa của <strong>50 phiên</strong> gần nhất. Phản ánh xu hướng trung hạn. MA50 thường đóng vai trò hỗ trợ/kháng cự quan trọng.
+                        </div>
+                    </div>
+                    <div class="guide-card vol">
+                        <div class="guide-card-title">Khối Lượng (KL) — Cột xám</div>
+                        <div class="guide-card-body">
+                            Số lượng cổ phiếu/hợp đồng được giao dịch trong một phiên. KL lớn kèm tăng giá = xác nhận xu hướng mạnh. KL nhỏ = tín hiệu yếu, dễ đảo chiều.
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Giá Cao Nhất</div>
-                <div class="stat-value" id="highPrice">-</div>
+
+            <div class="guide-section">
+                <h2>Các Thống Kê Hiển Thị</h2>
+                <div class="guide-grid">
+                    <div class="guide-card">
+                        <div class="guide-card-title">Giá Hiện Tại</div>
+                        <div class="guide-card-body">Giá đóng cửa của phiên giao dịch gần nhất trong khoảng thời gian đã chọn.</div>
+                    </div>
+                    <div class="guide-card">
+                        <div class="guide-card-title">Thay Đổi (%)</div>
+                        <div class="guide-card-body">Phần trăm thay đổi từ giá đầu kỳ đến giá hiện tại. Màu <span style="color:#10b981;font-weight:600">xanh</span> = tăng, <span style="color:#ef4444;font-weight:600">đỏ</span> = giảm.</div>
+                    </div>
+                    <div class="guide-card">
+                        <div class="guide-card-title">Biên Độ Giá (%)</div>
+                        <div class="guide-card-body">Khoảng cách từ giá thấp nhất đến cao nhất trong kỳ: <em>(Cao − Thấp) / Thấp × 100%</em>. Phản ánh mức độ biến động.</div>
+                    </div>
+                    <div class="guide-card">
+                        <div class="guide-card-title">KL Trung Bình/Ngày</div>
+                        <div class="guide-card-body">Khối lượng giao dịch trung bình mỗi phiên trong kỳ. Đơn vị: M (triệu), B (tỷ). Dùng để so sánh thanh khoản.</div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Giá Thấp Nhất</div>
-                <div class="stat-value" id="lowPrice">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Thay Đổi (%)</div>
-                <div class="stat-value" id="changePercent">-</div>
-            </div>
-        </div>
+
+        </div><!-- end tab-guide -->
+
     </div>
 
-    <script src="app.js"></script>
+    <script src="js/tabs.js"></script>
+    <script src="js/chart.js"></script>
 </body>
 </html>
