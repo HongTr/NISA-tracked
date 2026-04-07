@@ -2,8 +2,7 @@ let chart = null;
 
 const INDEX_NAMES = {
     '^GSPC': 'S&P 500',
-    '^IXIC': 'NASDAQ',
-    '^DJI': 'Dow Jones'
+    '^N225': 'Nikkei 225'
 };
 
 // Hàm tính toán ngày
@@ -23,6 +22,10 @@ function getDateRange(period) {
             break;
         case '6m':
             startDate.setMonth(endDate.getMonth() - 6);
+            break;
+        case 'ytd':
+            startDate.setMonth(0);
+            startDate.setDate(1);
             break;
     }
 
@@ -113,19 +116,19 @@ async function fetchChartData() {
         const period2 = Math.floor(new Date(endDate).getTime() / 1000) + 86400;
 
         const yahooUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(index)}?interval=1d&period1=${period1}&period2=${period2}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`;
 
         const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error('Proxy request failed');
 
-        const proxyData = await response.json();
-        const data = JSON.parse(proxyData.contents);
+        const data = await response.json();
 
         const result = data?.chart?.result?.[0];
         if (!result) throw new Error('No data returned');
 
         const timestamps = result.timestamp;
         const closePrices = result.indicators?.quote?.[0]?.close;
+        const volumes = result.indicators?.quote?.[0]?.volume;
 
         if (!timestamps || !closePrices || timestamps.length === 0) {
             showError('Không có dữ liệu cho khoảng thời gian này');
@@ -135,11 +138,13 @@ async function fetchChartData() {
         // Lọc dữ liệu hợp lệ (loại bỏ null)
         const dates = [];
         const prices = [];
+        const volData = [];
         for (let i = 0; i < timestamps.length; i++) {
             if (closePrices[i] !== null && closePrices[i] !== undefined) {
                 const d = new Date(timestamps[i] * 1000);
                 dates.push(`${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
                 prices.push(parseFloat(closePrices[i].toFixed(2)));
+                volData.push(volumes?.[i] ?? 0);
             }
         }
 
@@ -166,7 +171,7 @@ async function fetchChartData() {
 
         document.getElementById('stats').style.display = 'grid';
 
-        drawChart(dates, prices, INDEX_NAMES[index] || index);
+        drawChart(dates, prices, volData, INDEX_NAMES[index] || index);
         chartContainer.classList.add('active');
 
     } catch (error) {
@@ -178,7 +183,7 @@ async function fetchChartData() {
 }
 
 // Vẽ biểu đồ
-function drawChart(dates, prices, label) {
+function drawChart(dates, prices, volData, label) {
     const ctx = document.getElementById('myChart').getContext('2d');
 
     if (chart) {
@@ -190,21 +195,35 @@ function drawChart(dates, prices, label) {
     const bgColor = isPositive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)';
 
     chart = new Chart(ctx, {
-        type: 'line',
         data: {
             labels: dates,
-            datasets: [{
-                label: label,
-                data: prices,
-                borderColor: color,
-                backgroundColor: bgColor,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-                pointHoverRadius: 5,
-                pointBackgroundColor: color
-            }]
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Khối Lượng',
+                    data: volData,
+                    backgroundColor: 'rgba(150, 150, 150, 0.25)',
+                    borderWidth: 0,
+                    yAxisID: 'yVol',
+                    order: 2,
+                    barPercentage: 0.9
+                },
+                {
+                    type: 'line',
+                    label: label,
+                    data: prices,
+                    borderColor: color,
+                    backgroundColor: bgColor,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: color,
+                    yAxisID: 'y',
+                    order: 1
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -213,6 +232,7 @@ function drawChart(dates, prices, label) {
                 legend: {
                     display: true,
                     labels: {
+                        filter: (item) => item.text !== 'Khối Lượng',
                         font: { size: 13, weight: 'bold' },
                         color: '#333'
                     }
@@ -226,6 +246,12 @@ function drawChart(dates, prices, label) {
                     intersect: false,
                     callbacks: {
                         label: function (context) {
+                            if (context.dataset.yAxisID === 'yVol') {
+                                const val = context.parsed.y;
+                                if (val >= 1e9) return ` KL: ${(val / 1e9).toFixed(2)}B`;
+                                if (val >= 1e6) return ` KL: ${(val / 1e6).toFixed(2)}M`;
+                                return ` KL: ${val.toLocaleString('en-US')}`;
+                            }
                             return ` $${context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
                         }
                     }
@@ -234,6 +260,7 @@ function drawChart(dates, prices, label) {
             scales: {
                 y: {
                     beginAtZero: false,
+                    position: 'left',
                     ticks: {
                         callback: function (value) {
                             return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 0 });
@@ -241,6 +268,21 @@ function drawChart(dates, prices, label) {
                         color: '#666'
                     },
                     grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                yVol: {
+                    beginAtZero: true,
+                    position: 'right',
+                    max: Math.max(...volData) * 4,
+                    grid: { display: false },
+                    ticks: {
+                        callback: function (value) {
+                            if (value >= 1e9) return (value / 1e9).toFixed(0) + 'B';
+                            if (value >= 1e6) return (value / 1e6).toFixed(0) + 'M';
+                            return value;
+                        },
+                        color: '#bbb',
+                        maxTicksLimit: 6
+                    }
                 },
                 x: {
                     grid: { display: false },
@@ -260,6 +302,7 @@ function drawChart(dates, prices, label) {
         }
     });
 }
+
 
 // Reset form
 function resetForm() {

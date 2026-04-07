@@ -106,13 +106,14 @@
         .chart-container {
             position: relative;
             height: 400px;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             display: none;
         }
 
         .chart-container.active {
             display: block;
         }
+
 
         .stats {
             display: grid;
@@ -222,9 +223,19 @@
                 <label for="indexSelect">Chọn Chỉ Số:</label>
                 <select id="indexSelect">
                     <option value="^GSPC">SP500 (S&P 500)</option>
-                    <option value="^IXIC">NASDAQ</option>
-                    <option value="^DJI">Dow Jones</option>
+                    <option value="^N225">Nikkei 225</option>
                 </select>
+            </div>
+
+            <div class="control-group">
+                <label>Khoảng Thời Gian Nhanh:</label>
+                <div class="time-period-buttons" style="grid-template-columns: repeat(5, 1fr);">
+                    <button class="period-btn" data-period="1w">1 Tuần</button>
+                    <button class="period-btn" data-period="1m">1 Tháng</button>
+                    <button class="period-btn" data-period="3m">3 Tháng</button>
+                    <button class="period-btn" data-period="6m">6 Tháng</button>
+                    <button class="period-btn" data-period="ytd">YTD</button>
+                </div>
             </div>
 
             <div class="control-group">
@@ -235,16 +246,6 @@
             <div class="control-group">
                 <label for="customEnd">Ngày Kết Thúc (Tùy Chỉnh):</label>
                 <input type="date" id="customEnd">
-            </div>
-
-            <div class="control-group">
-                <label>Khoảng Thời Gian Nhanh:</label>
-                <div class="time-period-buttons">
-                    <button class="period-btn" data-period="1w">1 Tuần</button>
-                    <button class="period-btn" data-period="1m">1 Tháng</button>
-                    <button class="period-btn" data-period="3m">3 Tháng</button>
-                    <button class="period-btn" data-period="6m">6 Tháng</button>
-                </div>
             </div>
 
             <div class="buttons">
@@ -258,6 +259,7 @@
         <div class="chart-container" id="chartContainer">
             <canvas id="myChart"></canvas>
         </div>
+
 
         <div class="stats" id="stats" style="display: none;">
             <div class="stat-card">
