@@ -30,17 +30,21 @@
                         <option value="ACWI">MSCI ACWI</option>
                         <option value="EEM">MSCI Emerging Markets</option>
                         <option value="GC=F">XAUUSD (Vàng)</option>
+                        <option value="USDJPY=X">USD/JPY (Tỷ giá)</option>
                     </select>
                 </div>
 
                 <div class="control-group">
                     <label>Khoảng Thời Gian Nhanh:</label>
-                    <div class="time-period-buttons" style="grid-template-columns: repeat(5, 1fr);">
+                    <div class="time-period-buttons">
                         <button class="period-btn" data-period="1w">1 Tuần</button>
                         <button class="period-btn" data-period="1m">1 Tháng</button>
                         <button class="period-btn" data-period="3m">3 Tháng</button>
                         <button class="period-btn" data-period="6m">6 Tháng</button>
                         <button class="period-btn" data-period="ytd">YTD</button>
+                        <button class="period-btn" data-period="1y">1Y</button>
+                        <button class="period-btn" data-period="5y">5Y</button>
+                        <button class="period-btn" data-period="max">Max</button>
                     </div>
                 </div>
 
@@ -58,6 +62,16 @@
                     <button onclick="fetchChartData()">Xem Biểu Đồ</button>
                     <button class="secondary" onclick="resetForm()">Reset</button>
                 </div>
+            </div>
+
+            <!-- Toggle quy đổi JPY -->
+            <div class="jpy-toggle-bar" id="jpyToggleBar" style="display:none;">
+                <span class="jpy-toggle-label">Quy đổi sang JPY</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="jpyToggle" onchange="onJpyToggleChange()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="jpy-rate-info" id="jpyRateInfo"></span>
             </div>
 
             <div class="loading" id="loading">⏳ Đang tải dữ liệu...</div>
@@ -94,6 +108,21 @@
                     <div class="stat-label">KL Trung Bình/Ngày</div>
                     <div class="stat-value" id="avgVolume">-</div>
                 </div>
+                <div class="stat-card" id="rsiCard">
+                    <div class="stat-label">RSI (14) <span id="rsiBadge" class="rsi-badge"></span></div>
+                    <div class="stat-value" id="rsiValue">-</div>
+                </div>
+            </div>
+
+            <div class="rsi-container" id="rsiContainer">
+                <div class="rsi-header">
+                    <span class="rsi-title">RSI (14)</span>
+                    <span class="rsi-legend">
+                        <span class="rsi-legend-item overbought">≥ 70: Quá Mua</span>
+                        <span class="rsi-legend-item oversold">≤ 30: Quá Bán</span>
+                    </span>
+                </div>
+                <canvas id="rsiChart"></canvas>
             </div>
 
         </div><!-- end tab-chart -->
@@ -139,6 +168,13 @@
                             Giá vàng tính bằng USD/oz. Thường tăng khi bất ổn kinh tế/địa chính trị, lạm phát cao hoặc USD yếu. Là tài sản trú ẩn an toàn truyền thống.
                         </div>
                     </div>
+                    <div class="guide-card usdjpy">
+                        <div class="guide-card-title">USD/JPY (USDJPY=X)</div>
+                        <div class="guide-card-body">
+                            <span class="tag">Tỷ giá</span><br>
+                            Số Yên Nhật đổi được từ 1 USD. JPY tăng (số giảm) thường phản ánh xu hướng trú ẩn an toàn. Ảnh hưởng trực tiếp đến giá trị thực của Nikkei 225 với nhà đầu tư ngoại.
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -161,6 +197,15 @@
                         <div class="guide-card-title">Khối Lượng (KL) — Cột xám</div>
                         <div class="guide-card-body">
                             Số lượng cổ phiếu/hợp đồng được giao dịch trong một phiên. KL lớn kèm tăng giá = xác nhận xu hướng mạnh. KL nhỏ = tín hiệu yếu, dễ đảo chiều.
+                        </div>
+                    </div>
+                    <div class="guide-card rsi">
+                        <div class="guide-card-title">RSI (14) — Relative Strength Index</div>
+                        <div class="guide-card-body">
+                            Dao động từ <strong>0 – 100</strong>. Đo lường tốc độ và độ lớn của biến động giá trong 14 phiên gần nhất.<br><br>
+                            <span style="color:#ef4444;font-weight:600">≥ 70: Quá Mua</span> — thị trường có thể đảo chiều giảm.<br>
+                            <span style="color:#10b981;font-weight:600">≤ 30: Quá Bán</span> — thị trường có thể đảo chiều tăng.<br>
+                            <strong>30 – 70: Trung Tính</strong> — xu hướng đang ổn định.
                         </div>
                     </div>
                 </div>
