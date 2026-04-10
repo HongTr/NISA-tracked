@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: nisa-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r python/requirements.txt
+    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
