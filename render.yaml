@@ -3,10 +3,8 @@ services:
     name: nisa-backend
     env: python
     plan: free
-    buildCommand: pip install --upgrade pip && pip install -r python/requirements.txt
-    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT server:app
+    buildCommand: pip install --no-cache-dir -r python/requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT server:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
-      - key: PIP_NO_BUILD_ISOLATION
-        value: "false"
