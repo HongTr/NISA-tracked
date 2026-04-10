@@ -506,13 +506,15 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     type: 'line', label: 'MA20', data: ma20,
                     borderColor: '#f59e0b', borderWidth: 1.5,
                     pointRadius: 0, fill: false, tension: 0.3,
-                    yAxisID: 'y', order: 1, spanGaps: false
+                    yAxisID: 'y', order: 1, spanGaps: false,
+                    hidden: true
                 },
                 {
                     type: 'line', label: 'MA50', data: ma50,
                     borderColor: '#3b82f6', borderWidth: 1.5,
                     pointRadius: 0, fill: false, tension: 0.3,
-                    yAxisID: 'y', order: 1, spanGaps: false
+                    yAxisID: 'y', order: 1, spanGaps: false,
+                    hidden: true
                 },
                 {
                     type: 'line', label: label, data: prices,
@@ -532,7 +534,8 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     pointRadius: 9,
                     pointStyle: 'star',
                     yAxisID: 'y',
-                    order: 0
+                    order: 0,
+                    hidden: true
                 },
                 {
                     type: 'scatter',
@@ -544,7 +547,8 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     pointRadius: 9,
                     pointStyle: 'crossRot',
                     yAxisID: 'y',
-                    order: 0
+                    order: 0,
+                    hidden: true
                 }
             ]
         },
