@@ -362,6 +362,10 @@ function drawRsiChart(dates, rsi) {
     const ctx = document.getElementById('rsiChart').getContext('2d');
     if (rsiChart) rsiChart.destroy();
 
+    const isDark = document.body.classList.contains('dark');
+    const rsiTickColor = isDark ? '#888' : '#666';
+    const rsiGridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
     // Plugin tô vùng Quá mua (>70) đỏ nhạt và Quá bán (<30) xanh nhạt
     const rsiZonePlugin = {
         id: 'rsiZone',
@@ -425,12 +429,12 @@ function drawRsiChart(dates, rsi) {
                 y: {
                     min: 0, max: 100,
                     position: 'left',
-                    ticks: { stepSize: 10, color: '#666' },
-                    grid: { color: 'rgba(0,0,0,0.05)' }
+                    ticks: { stepSize: 10, color: rsiTickColor },
+                    grid: { color: rsiGridColor }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 45, minRotation: 0, color: '#666', maxTicksLimit: 12 }
+                    ticks: { maxRotation: 45, minRotation: 0, color: rsiTickColor, maxTicksLimit: 12 }
                 }
             },
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
@@ -463,6 +467,13 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
     const ctx = document.getElementById('myChart').getContext('2d');
     if (chart) chart.destroy();
 
+    const isDark = document.body.classList.contains('dark');
+    const tickColor  = isDark ? '#888' : '#666';
+    const gridColor  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const volColor   = isDark ? 'rgba(180,180,180,0.18)' : 'rgba(150,150,150,0.25)';
+    const legendColor = isDark ? '#ccc' : '#333';
+    const volTickColor = isDark ? '#666' : '#bbb';
+
     const { golden, death } = detectCrosses(prices, ma20, ma50);
 
     // Chuyển index → giá trị label/price để Chart.js scatter hiểu
@@ -485,7 +496,7 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     type: 'bar',
                     label: 'Khối Lượng',
                     data: volData,
-                    backgroundColor: 'rgba(150, 150, 150, 0.25)',
+                    backgroundColor: volColor,
                     borderWidth: 0,
                     yAxisID: 'yVol',
                     order: 2,
@@ -546,7 +557,7 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     labels: {
                         filter: (item) => item.text !== 'Khối Lượng' && item.text !== undefined,
                         font: { size: 13, weight: 'bold' },
-                        color: '#333',
+                        color: legendColor,
                         usePointStyle: true
                     }
                 },
@@ -580,9 +591,9 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                     position: 'left',
                     ticks: {
                         callback: fmtTick,
-                        color: '#666'
+                        color: tickColor
                     },
-                    grid: { color: 'rgba(0,0,0,0.05)' }
+                    grid: { color: gridColor }
                 },
                 yVol: {
                     beginAtZero: true,
@@ -595,18 +606,37 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
                             if (value >= 1e6) return (value / 1e6).toFixed(0) + 'M';
                             return value;
                         },
-                        color: '#bbb',
+                        color: volTickColor,
                         maxTicksLimit: 6
                     }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { maxRotation: 45, minRotation: 0, color: '#666', maxTicksLimit: 12 }
+                    ticks: { maxRotation: 45, minRotation: 0, color: tickColor, maxTicksLimit: 12 }
                 }
             },
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     });
+}
+
+// ── Dark mode chart refresh ───────────────────────────────────
+
+function refreshChartColors() {
+    if (!currentData) return;
+    const { dates, prices, volData, ma20, ma50, rsi, fxRates, index } = currentData;
+    const isJpy = document.getElementById('jpyToggle').checked;
+
+    if (isJpy && fxRates) {
+        const jpyPrices = prices.map((p, i) => fxRates[i] != null ? parseFloat((p * fxRates[i]).toFixed(0)) : null);
+        const jpyMa20   = ma20.map((v, i) => v != null && fxRates[i] != null ? parseFloat((v * fxRates[i]).toFixed(0)) : null);
+        const jpyMa50   = ma50.map((v, i) => v != null && fxRates[i] != null ? parseFloat((v * fxRates[i]).toFixed(0)) : null);
+        drawChart(dates, jpyPrices, volData, `${INDEX_NAMES[index] || index} (JPY)`, jpyMa20, jpyMa50, '¥');
+    } else {
+        const sym = index === 'USDJPY=X' ? '¥' : '$';
+        drawChart(dates, prices, volData, INDEX_NAMES[index] || index, ma20, ma50, sym);
+    }
+    drawRsiChart(dates, rsi);
 }
 
 // ── Event listeners ───────────────────────────────────────────

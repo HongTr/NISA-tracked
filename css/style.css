@@ -451,6 +451,172 @@ button.secondary {
     transform: translateX(18px);
 }
 
+/* ── Header row ── */
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.header-row h1 {
+    margin-bottom: 0;
+}
+
+.dark-toggle {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 12px;
+    background: #f0f0f0;
+    border: 2px solid #ddd;
+    border-radius: 50px;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: inherit;
+    box-shadow: none;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.dark-toggle:hover {
+    background: #e0e0e0;
+    transform: translateY(-50%);
+    box-shadow: none;
+}
+
+/* ── Dark Mode ── */
+body.dark {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+body.dark .container {
+    background: #1e1e2e;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+body.dark h1 {
+    color: #e0e0e0;
+}
+
+body.dark .controls {
+    background: #2a2a3e;
+}
+
+body.dark label {
+    color: #aaa;
+}
+
+body.dark select,
+body.dark input {
+    background: #2a2a3e;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark select:focus,
+body.dark input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+body.dark .period-btn {
+    background: #2a2a3e;
+    border-color: #444;
+    color: #aaa;
+}
+
+body.dark .period-btn:hover {
+    border-color: #667eea;
+}
+
+body.dark .period-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+body.dark button.secondary {
+    background: #555;
+}
+
+body.dark .stat-card {
+    background: #2a2a3e;
+}
+
+body.dark .stat-label {
+    color: #777;
+}
+
+body.dark .stat-value {
+    color: #e0e0e0;
+}
+
+body.dark .tabs {
+    border-bottom-color: #444;
+}
+
+body.dark .tab-btn {
+    color: #666;
+}
+
+body.dark .tab-btn:hover {
+    color: #667eea;
+}
+
+body.dark .tab-btn.active {
+    color: #667eea;
+}
+
+body.dark .guide-section h2 {
+    border-bottom-color: #333;
+}
+
+body.dark .guide-card {
+    background: #2a2a3e;
+}
+
+body.dark .guide-card-title {
+    color: #e0e0e0;
+}
+
+body.dark .guide-card-body {
+    color: #aaa;
+}
+
+body.dark .guide-card-body .tag {
+    background: rgba(102, 126, 234, 0.15);
+}
+
+body.dark .rsi-container {
+    border-top-color: #333;
+}
+
+body.dark .jpy-toggle-bar {
+    background: #2a2a3e;
+    border-color: #3a3a5e;
+}
+
+body.dark .jpy-toggle-label {
+    color: #bbb;
+}
+
+body.dark .dark-toggle {
+    background: #2a2a3e;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark .dark-toggle:hover {
+    background: #3a3a5e;
+}
+
+body.dark .error {
+    background: rgba(248, 215, 218, 0.15);
+    color: #f8888e;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .controls {
