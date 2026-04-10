@@ -17,6 +17,7 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('chart')">Biểu Đồ</button>
             <button class="tab-btn" onclick="switchTab('guide')">Giải Thích Chỉ Số</button>
+            <button class="tab-btn" onclick="switchTab('simulation')">Mô Phỏng</button>
         </div>
 
         <!-- ── Tab: Biểu đồ ── -->
@@ -238,10 +239,157 @@
 
         </div><!-- end tab-guide -->
 
+        <!-- ── Tab: Mô phỏng Monte Carlo ── -->
+        <div class="tab-panel" id="tab-simulation">
+
+            <div class="error" id="sim-error"></div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Chỉ Số:</label>
+                    <div class="sim-param-display">S&amp;P 500 (^GSPC) — 5 năm lịch sử</div>
+                </div>
+                <div class="control-group">
+                    <label>Số Ngày Mô Phỏng:</label>
+                    <div class="forecast-days-selector">
+                        <button class="days-btn" data-days="7">7 ngày</button>
+                        <button class="days-btn active" data-days="30">30 ngày</button>
+                        <button class="days-btn" data-days="15">15 ngày</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Backtest — Kiểm Tra Độ Tin Cậy:</label>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="date" id="sim-start-date"
+                               min="2025-01-01"
+                               title="Chọn ngày bắt đầu (từ 01/01/2025) để so sánh dự báo với giá thật">
+                    </div>
+                    <small class="backtest-hint">Để trống = mô phỏng từ hôm nay &nbsp;|&nbsp; Chọn ngày quá khứ = so sánh với giá thật</small>
+                </div>
+                <div class="buttons">
+                    <button onclick="runSimulation()">&#9654; Chạy Mô Phỏng</button>
+                    <button class="secondary" onclick="resetSimulation()">Reset</button>
+                </div>
+            </div>
+
+            <div class="loading" id="sim-loading">&#9203; Đang chạy GARCH(1,1) + Monte Carlo... (có thể mất 10-20 giây)</div>
+
+            <div class="chart-container" id="simChartContainer">
+                <canvas id="simChart"></canvas>
+            </div>
+
+            <div class="stats" id="sim-stats" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-label">Giá Hiện Tại (S&#8320;)
+                        <span class="info-icon" data-tooltip="Giá đóng cửa mới nhất của S&P 500 — điểm xuất phát của toàn bộ mô phỏng.">&#9432;</span>
+                    </div>
+                    <div class="stat-value" id="sim-current">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Dự Báo P97.5 (CI 95%)
+                        <span class="info-icon" data-tooltip="Kịch bản lạc quan: 97.5% trong 1000 mô phỏng kết thúc DƯỚI mức này. Tức là chỉ 2.5% khả năng vượt qua con số này.">&#9432;</span>
+                    </div>
+                    <div class="stat-value" id="sim-max" style="color: #10b981;">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Dự Báo P2.5 (CI 95%)
+                        <span class="info-icon" data-tooltip="Kịch bản bi quan: chỉ 2.5% mô phỏng kết thúc dưới mức này. Đây là ngưỡng rủi ro tối đa trong 95% trường hợp.">&#9432;</span>
+                    </div>
+                    <div class="stat-value" id="sim-min" style="color: #ef4444;">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Xác Suất Tăng Giá
+                        <span class="info-icon" data-tooltip="% số mô phỏng kết thúc CAO HƠN giá hiện tại sau đúng 30 ngày. Ví dụ 53% = 530 trong 1000 kịch bản kết thúc có lãi.">&#9432;</span>
+                    </div>
+                    <div class="stat-value" id="sim-prob">-</div>
+                </div>
+            </div>
+
+            <!-- ── Tín hiệu quyết định ── -->
+            <div class="sim-signals" id="sim-signals" style="display:none;">
+                <div class="signals-grid">
+                    <div class="signal-card" id="signal-card-trend">
+                        <div class="signal-label">Xu Hướng 30 Ngày
+                            <span class="info-icon" data-tooltip="Xác suất giá cao hơn hiện tại sau 30 ngày. ≥60% = tích cực, 40–60% = trung tính, &lt;40% = tiêu cực.">&#9432;</span>
+                        </div>
+                        <div class="signal-value" id="signal-val-trend">-</div>
+                        <div class="signal-sub" id="signal-sub-trend"></div>
+                        <span class="signal-badge" id="signal-badge-trend">-</span>
+                    </div>
+                    <div class="signal-card" id="signal-card-rr">
+                        <div class="signal-label">Risk / Reward
+                            <span class="info-icon" data-tooltip="Lợi nhuận kỳ vọng (median) chia cho rủi ro tối đa (P2.5). Tỷ lệ &gt;1.5x = hấp dẫn, &lt;0.8x = không đáng rủi ro.">&#9432;</span>
+                        </div>
+                        <div class="signal-value" id="signal-val-rr">-</div>
+                        <div class="signal-sub" id="signal-sub-rr"></div>
+                        <span class="signal-badge" id="signal-badge-rr">-</span>
+                    </div>
+                    <div class="signal-card" id="signal-card-vol">
+                        <div class="signal-label">Độ Bền Biến Động
+                            <span class="info-icon" data-tooltip="GARCH persistence = α+β. Giá trị gần 1 nghĩa là sau một cú sốc, thị trường sẽ biến động mạnh trong thời gian DÀI trước khi ổn định lại.">&#9432;</span>
+                        </div>
+                        <div class="signal-value" id="signal-val-vol">-</div>
+                        <div class="signal-sub" id="signal-sub-vol"></div>
+                        <span class="signal-badge" id="signal-badge-vol">-</span>
+                    </div>
+                    <div class="signal-card" id="signal-card-tail">
+                        <div class="signal-label">Rủi Ro Đuôi (Mất &gt;5%)
+                            <span class="info-icon" data-tooltip="Xác suất giá giảm hơn 5% sau 30 ngày. &lt;10% = thấp, 10–25% = trung bình, &gt;25% = rủi ro cao cần chú ý.">&#9432;</span>
+                        </div>
+                        <div class="signal-value" id="signal-val-tail">-</div>
+                        <div class="signal-sub" id="signal-sub-tail"></div>
+                        <span class="signal-badge" id="signal-badge-tail">-</span>
+                    </div>
+                </div>
+                <div class="signal-conclusion" id="signal-conclusion">
+                    <div class="conclusion-label">Kết Luận Tổng Hợp</div>
+                    <div class="conclusion-verdict" id="conclusion-verdict">-</div>
+                    <div class="conclusion-reasons" id="conclusion-reasons"></div>
+                </div>
+            </div>
+
+            <!-- ── Backtest Panel ── -->
+            <div class="backtest-panel" id="backtest-panel" style="display:none;">
+                <div class="backtest-header">
+                    <span class="backtest-title">Kết Quả Backtest</span>
+                    <span class="backtest-verdict" id="backtest-verdict"></span>
+                </div>
+                <div class="backtest-grid">
+                    <div class="backtest-item">
+                        <div class="backtest-label">Giá Thật (cuối kỳ)</div>
+                        <div class="backtest-value" id="bt-actual">-</div>
+                    </div>
+                    <div class="backtest-item">
+                        <div class="backtest-label">Median Dự Báo</div>
+                        <div class="backtest-value" id="bt-median">-</div>
+                    </div>
+                    <div class="backtest-item">
+                        <div class="backtest-label">Sai Số (so với S₀)</div>
+                        <div class="backtest-value" id="bt-error">-</div>
+                    </div>
+                    <div class="backtest-item">
+                        <div class="backtest-label">Nằm Trong CI 95%?</div>
+                        <div class="backtest-value" id="bt-in-ci">-</div>
+                    </div>
+                    <div class="backtest-item">
+                        <div class="backtest-label">Đúng Hướng?</div>
+                        <div class="backtest-value" id="bt-direction">-</div>
+                    </div>
+                    <div class="backtest-item">
+                        <div class="backtest-label">CI 95% Tại Cuối Kỳ</div>
+                        <div class="backtest-value" id="bt-ci-range">-</div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div><!-- end tab-simulation -->
+
     </div>
 
     <script src="js/tabs.js"></script>
     <script src="js/chart.js"></script>
+    <script src="js/simulation.js"></script>
     <script>
         function toggleDark() {
             const isDark = document.body.classList.toggle('dark');
