@@ -12,7 +12,7 @@ const API_URL = (() => {
     } else {
         // Production: Backend deploy trên cùng domain hoặc khác
         // Thay đổi URL dưới đây khi deploy lên production
-        const apiHost = 'https://your-backend-url.com';  // ← THAY ĐỔI KHI DEPLOY
+        const apiHost = 'https://nisa-tracked.onrender.com';
         return `${apiHost}/api/simulate`;
     }
 })();
@@ -22,7 +22,7 @@ const COMPARE_API_URL = (() => {
     if (isDev) {
         return 'http://localhost:5000/api/compare';  // Local dev
     } else {
-        const apiHost = 'https://your-backend-url.com';
+        const apiHost = 'https://nisa-tracked.onrender.com';
         return `${apiHost}/api/compare`;
     }
 })();
