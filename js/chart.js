@@ -71,6 +71,7 @@ function resetForm() {
     document.getElementById('jpyToggleBar').style.display   = 'none';
     document.getElementById('jpyToggle').checked            = false;
     document.getElementById('error').classList.remove('active');
+    document.getElementById('marketStateBar').style.display = 'none';
     if (chart)    { chart.destroy();    chart    = null; }
     if (rsiChart) { rsiChart.destroy(); rsiChart = null; }
     currentData = null;
@@ -148,8 +149,8 @@ async function fetchChartData() {
     currentData = null;
 
     try {
-        // Load thêm 84 ngày trước startDate để tính đủ MA50 + RSI(14)
-        const { timestamps, closePrices, volumes } = await fetchYahoo(index, startDate, endDate, 84);
+        // Load thêm 280 ngày trước startDate để tính đủ MA200 + RSI(14)
+        const { timestamps, closePrices, volumes } = await fetchYahoo(index, startDate, endDate, 280);
 
         if (!timestamps || !closePrices || timestamps.length === 0) {
             showError('Không có dữ liệu cho khoảng thời gian này');
@@ -179,9 +180,10 @@ async function fetchChartData() {
         }
 
         // Tính MA và RSI trên toàn bộ để đầy đủ từ điểm đầu
-        const allMa20 = calcMA(allPrices, 20);
-        const allMa50 = calcMA(allPrices, 50);
-        const allRsi  = calcRSI(allPrices, 14);
+        const allMa20  = calcMA(allPrices, 20);
+        const allMa50  = calcMA(allPrices, 50);
+        const allMa200 = calcMA(allPrices, 200);
+        const allRsi   = calcRSI(allPrices, 14);
 
         // Slice chỉ lấy phần từ startDate để hiển thị
         const dates   = allDates.slice(sliceIdx);
@@ -189,6 +191,7 @@ async function fetchChartData() {
         const volData = allVolData.slice(sliceIdx);
         const ma20    = allMa20.slice(sliceIdx);
         const ma50    = allMa50.slice(sliceIdx);
+        const ma200   = allMa200.slice(sliceIdx);
         const rsi     = allRsi.slice(sliceIdx);
 
         if (prices.length === 0) {
@@ -205,7 +208,7 @@ async function fetchChartData() {
             } catch { /* toggle sẽ không hiện nếu thất bại */ }
         }
 
-        currentData = { dates, prices, volData, ma20, ma50, rsi, fxRates, index };
+        currentData = { dates, prices, volData, ma20, ma50, ma200, rsi, fxRates, index };
 
         const sym = index === 'USDJPY=X' ? '¥' : '$';
         renderStats(prices, volData, sym);
@@ -214,6 +217,7 @@ async function fetchChartData() {
         drawRsiChart(dates, rsi);
         chartContainer.classList.add('active');
         document.getElementById('rsiContainer').classList.add('active');
+        updateMarketState(prices, ma200, rsi, allPrices);
 
         // Hiện toggle nếu có FX data hợp lệ
         if (fxRates && fxRates.some(r => r != null)) {
@@ -622,6 +626,84 @@ function drawChart(dates, prices, volData, label, ma20, ma50, currencySymbol = '
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     });
+}
+
+// ── Trạng thái thị trường ─────────────────────────────────────
+
+function updateMarketState(prices, ma200, rsi, allPrices) {
+    const bar = document.getElementById('marketStateBar');
+
+    // Lấy giá và MA200 hiện tại (phần tử cuối)
+    const currentPrice = prices[prices.length - 1];
+    const currentMa200 = ma200[ma200.length - 1];
+    const currentRsi   = rsi[rsi.length - 1];
+
+    // Nếu chưa đủ 200 ngày để tính MA200 thì không hiện
+    if (currentMa200 == null) {
+        bar.style.display = 'none';
+        return;
+    }
+
+    // Tính drawdown từ đỉnh 52 tuần (252 phiên) của phần giá hiển thị
+    const recentPrices = prices.filter(p => p != null);
+    const peak = Math.max(...recentPrices.slice(-252));
+    const drawdownFromPeak = ((currentPrice - peak) / peak) * 100;
+
+    // Khoảng cách giá so với MA200
+    const pctVsMa200 = ((currentPrice - currentMa200) / currentMa200) * 100;
+
+    // Phân loại trạng thái theo bảng của bạn
+    let state, badge, action, metrics, colorClass;
+
+    let tooltip;
+    if (pctVsMa200 < -10) {
+        state      = 'Hoảng Loạn';
+        badge      = '🔴 Hoảng Loạn';
+        action     = 'Mua thêm 100%';
+        colorClass = 'state-panic';
+        metrics    = `Giá thấp hơn MA200: ${pctVsMa200.toFixed(1)}%`;
+        tooltip    = 'Thị trường hoảng loạn — giá đã rơi sâu hơn 10% dưới MA200. Đây là vùng định giá rất thấp, lịch sử cho thấy đây là cơ hội mua tốt cho nhà đầu tư dài hạn. Tăng gấp đôi khoản mua định kỳ.';
+    } else if ((currentRsi !== null && currentRsi < 40) || drawdownFromPeak <= -5) {
+        state      = 'Rung Lắc';
+        badge      = '🟡 Rung Lắc';
+        action     = 'Mua thêm 20%';
+        colorClass = 'state-volatile';
+        const parts = [];
+        if (currentRsi !== null && currentRsi < 40)  parts.push(`RSI: ${currentRsi.toFixed(1)}`);
+        if (drawdownFromPeak <= -5) parts.push(`Drawdown từ đỉnh: ${drawdownFromPeak.toFixed(1)}%`);
+        metrics = parts.join(' · ');
+        tooltip = 'Thị trường đang rung lắc — RSI thấp hoặc giá đã giảm đáng kể từ đỉnh gần nhất. Tín hiệu ngắn hạn tiêu cực nhưng xu hướng dài hạn vẫn còn. Nên mua thêm một phần nhỏ để tận dụng giá thấp hơn.';
+    } else if (currentPrice >= currentMa200) {
+        state      = 'Bình Thường';
+        badge      = '🟢 Bình Thường';
+        action     = 'Mua định kỳ (DCA)';
+        colorClass = 'state-normal';
+        metrics    = `Giá cao hơn MA200: +${pctVsMa200.toFixed(1)}%`;
+        tooltip    = 'Thị trường trong xu hướng tăng dài hạn — giá nằm trên MA200. Tiếp tục kế hoạch mua định kỳ (DCA) theo lịch cố định, không cần điều chỉnh số tiền.';
+    } else {
+        // Giá < MA200 nhưng chưa tới -10% → vùng chú ý
+        state      = 'Chú Ý';
+        badge      = '🟠 Chú Ý';
+        action     = 'Mua thêm 50%';
+        colorClass = 'state-caution';
+        metrics    = `Giá thấp hơn MA200: ${pctVsMa200.toFixed(1)}%`;
+        tooltip    = 'Thị trường đã phá vỡ MA200 — tín hiệu xu hướng dài hạn đang yếu đi. Có thể là cơ hội mua tốt hoặc bắt đầu giai đoạn giảm sâu hơn. Nên tăng khoản mua thêm một phần để tận dụng nếu đây là đáy trung hạn.';
+    }
+
+    // RSI sub-metric (luôn hiện nếu có, trừ khi đã là chỉ số chính)
+    if (currentRsi !== null && !metrics.includes('RSI')) {
+        metrics += ` · RSI: ${currentRsi.toFixed(1)}`;
+    }
+    // MA200 value
+    metrics += ` · MA200: $${currentMa200.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    bar.className     = `market-state-bar ${colorClass}`;
+    document.getElementById('marketStateBadge').textContent      = badge;
+    document.getElementById('marketStateBadge').className        = `market-state-badge ${colorClass}`;
+    document.getElementById('marketStateMetrics').textContent    = metrics;
+    document.getElementById('marketStateAction').textContent     = action;
+    document.getElementById('marketStateTooltip').dataset.tooltip = tooltip;
+    bar.style.display = 'flex';
 }
 
 // ── Dark mode chart refresh ───────────────────────────────────

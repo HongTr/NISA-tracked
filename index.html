@@ -78,6 +78,21 @@
                 <span class="jpy-rate-info" id="jpyRateInfo"></span>
             </div>
 
+            <!-- ── Trạng thái thị trường ── -->
+            <div class="market-state-bar" id="marketStateBar" style="display:none;">
+                <div class="market-state-left">
+                    <span class="market-state-badge" id="marketStateBadge"></span>
+                    <div class="market-state-metrics" id="marketStateMetrics"></div>
+                </div>
+                <div class="market-state-action">
+                    <span class="market-state-action-label">
+                        Hành động gợi ý
+                        <span class="info-icon" id="marketStateTooltip" data-tooltip="">&#9432;</span>
+                    </span>
+                    <span class="market-state-action-value" id="marketStateAction"></span>
+                </div>
+            </div>
+
             <div class="loading" id="loading">⏳ Đang tải dữ liệu...</div>
 
             <div class="chart-container" id="chartContainer">
@@ -253,8 +268,8 @@
                     <label>Số Ngày Mô Phỏng:</label>
                     <div class="forecast-days-selector">
                         <button class="days-btn" data-days="7">7 ngày</button>
-                        <button class="days-btn active" data-days="30">30 ngày</button>
                         <button class="days-btn" data-days="15">15 ngày</button>
+                        <button class="days-btn active" data-days="30">30 ngày</button>
                     </div>
                 </div>
                 <div class="control-group">
@@ -268,6 +283,7 @@
                 </div>
                 <div class="buttons">
                     <button onclick="runSimulation()">&#9654; Chạy Mô Phỏng</button>
+                    <button onclick="runComparison()" title="Chạy 3 trường hợp cùng lúc (7, 15, 30 ngày) để so sánh sai số">📊 So Sánh 3 Trường Hợp</button>
                     <button class="secondary" onclick="resetSimulation()">Reset</button>
                 </div>
             </div>
@@ -382,6 +398,109 @@
                 </div>
             </div>
 
+            <!-- ── So Sánh 3 Trường Hợp Panel ── -->
+            <div class="comparison-panel" id="comparison-panel" style="display:none;">
+                <div class="comparison-header">
+                    <span class="comparison-title">📊 So Sánh Sai Số: 7, 15, 30 Ngày</span>
+                    <span class="comparison-date" id="comparison-date"></span>
+                </div>
+                <div class="comparison-grid">
+                    <div class="comparison-card" id="compare-7d">
+                        <div class="comparison-day-label">7 Ngày</div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Sai Số trung binh</span>
+                            <span class="comparison-item-value" id="comp-error-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Trong CI 95%</span>
+                            <span class="comparison-item-value" id="comp-ci-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Đúng Hướng</span>
+                            <span class="comparison-item-value" id="comp-dir-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá S₀</span>
+                            <span class="comparison-item-value" id="comp-s0-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá Thật Cuối Kỳ</span>
+                            <span class="comparison-item-value" id="comp-actual-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Median Dự Báo</span>
+                            <span class="comparison-item-value" id="comp-median-7">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">CI 95%</span>
+                            <span class="comparison-item-value comp-ci-range" id="comp-range-7">-</span>
+                        </div>
+                    </div>
+                    <div class="comparison-card" id="compare-15d">
+                        <div class="comparison-day-label">15 Ngày</div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Sai Số trung bình</span>
+                            <span class="comparison-item-value" id="comp-error-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Trong CI 95%</span>
+                            <span class="comparison-item-value" id="comp-ci-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Đúng Hướng</span>
+                            <span class="comparison-item-value" id="comp-dir-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá S₀</span>
+                            <span class="comparison-item-value" id="comp-s0-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá Thật Cuối Kỳ</span>
+                            <span class="comparison-item-value" id="comp-actual-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Median Dự Báo</span>
+                            <span class="comparison-item-value" id="comp-median-15">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">CI 95%</span>
+                            <span class="comparison-item-value comp-ci-range" id="comp-range-15">-</span>
+                        </div>
+                    </div>
+                    <div class="comparison-card" id="compare-30d">
+                        <div class="comparison-day-label">30 Ngày</div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Sai Số trung bình</span>
+                            <span class="comparison-item-value" id="comp-error-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Trong CI 95%</span>
+                            <span class="comparison-item-value" id="comp-ci-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Đúng Hướng</span>
+                            <span class="comparison-item-value" id="comp-dir-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá S₀</span>
+                            <span class="comparison-item-value" id="comp-s0-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Giá Thật Cuối Kỳ</span>
+                            <span class="comparison-item-value" id="comp-actual-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">Median Dự Báo</span>
+                            <span class="comparison-item-value" id="comp-median-30">-</span>
+                        </div>
+                        <div class="comparison-item">
+                            <span class="comparison-item-label">CI 95%</span>
+                            <span class="comparison-item-value comp-ci-range" id="comp-range-30">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
         </div><!-- end tab-simulation -->
 
@@ -397,7 +516,8 @@
             localStorage.setItem('darkMode', isDark ? '1' : '0');
             if (typeof refreshChartColors === 'function') refreshChartColors();
         }
-        if (localStorage.getItem('darkMode') === '1') {
+        const savedMode = localStorage.getItem('darkMode');
+        if (savedMode === null || savedMode === '1') {
             document.body.classList.add('dark');
             document.getElementById('darkToggle').textContent = '☀️';
         }

@@ -16,6 +16,17 @@ const API_URL = (() => {
         return `${apiHost}/api/simulate`;
     }
 })();
+
+const COMPARE_API_URL = (() => {
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev) {
+        return 'http://localhost:5000/api/compare';  // Local dev
+    } else {
+        const apiHost = 'https://your-backend-url.com';
+        return `${apiHost}/api/compare`;
+    }
+})();
+
 let simChartInstance = null;
 
 // ── Hiện / ẩn trạng thái UI ──────────────────────────────────────────────────
@@ -33,6 +44,7 @@ function resetSimulation() {
     document.getElementById('sim-stats').style.display    = 'none';
     document.getElementById('sim-signals').style.display  = 'none';
     document.getElementById('backtest-panel').style.display = 'none';
+    document.getElementById('comparison-panel').style.display = 'none';
     if (simChartInstance) { simChartInstance.destroy(); simChartInstance = null; }
 }
 
@@ -374,7 +386,7 @@ function updateBacktest(bt) {
 
     document.getElementById('bt-actual').textContent   = fmt(bt.actual_final);
     document.getElementById('bt-median').textContent   = fmt(bt.median_at_actual);
-    document.getElementById('bt-error').textContent    = `${bt.error_pct}%`;
+    document.getElementById('bt-error').textContent    = bt.mape_pct != null ? `${bt.mape_pct}%` : 'N/A';
     document.getElementById('bt-ci-range').textContent =
         `${fmt(bt.ci95_lo_at_actual)} – ${fmt(bt.ci95_hi_at_actual)}`;
 
@@ -444,6 +456,132 @@ async function runSimulation() {
             showSimError(`Lỗi: ${err.message}`);
         }
         console.error('Simulation error:', err);
+    } finally {
+        loadingEl.classList.remove('active');
+    }
+}
+
+// ── So sánh 3 trường hợp (7, 15, 30 ngày) ──────────────────────────────────────
+function updateComparison(data) {
+    const comp = data.comparison;
+    const startDate = data.start_date;
+
+    // Format ngày
+    const [y, m, d] = startDate.split('-');
+    const dateStr = `${d}/${m}/${y}`;
+    document.getElementById('comparison-date').textContent = `Ngày: ${dateStr}`;
+
+    const fmt = v => '$' + Number(v).toLocaleString('en-US', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+
+    // Hàm update từng card
+    function updateCard(days, comp_data) {
+        const suffix = days === 7 ? '7' : days === 15 ? '15' : '30';
+        const key = days + '_days';
+        const bt = data.results[key]?.backtest;
+        const stats = data.results[key]?.stats;
+
+        if (!comp_data) {
+            document.getElementById(`comp-error-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-ci-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-dir-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-s0-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-actual-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-median-${suffix}`).textContent = 'N/A';
+            document.getElementById(`comp-range-${suffix}`).textContent = 'N/A';
+            return;
+        }
+
+        // Sai Số (MAPE trung bình trong kỳ)
+        const mape = bt?.mape_pct;
+        const errorEl = document.getElementById(`comp-error-${suffix}`);
+        errorEl.textContent = mape != null ? `${mape}%` : 'N/A';
+        errorEl.style.color = mape != null && mape < 2 ? '#10b981' :
+                              mape != null && mape < 5 ? '#f59e0b' : '#ef4444';
+
+        // Trong CI 95%
+        const ciEl = document.getElementById(`comp-ci-${suffix}`);
+        ciEl.textContent = comp_data.in_ci95 ? '✅ Có' : '❌ Không';
+        ciEl.style.color = comp_data.in_ci95 ? '#10b981' : '#ef4444';
+
+        // Đúng Hướng
+        const dirEl = document.getElementById(`comp-dir-${suffix}`);
+        dirEl.textContent = comp_data.direction_correct ? '✅ Đúng' : '❌ Sai';
+        dirEl.style.color = comp_data.direction_correct ? '#10b981' : '#ef4444';
+
+        // Giá S₀
+        const s0El = document.getElementById(`comp-s0-${suffix}`);
+        s0El.textContent = stats ? fmt(stats.S0) : 'N/A';
+
+        // Giá Thật Cuối Kỳ
+        const actualEl = document.getElementById(`comp-actual-${suffix}`);
+        actualEl.textContent = bt ? fmt(bt.actual_final) : 'N/A';
+
+        // Median Dự Báo
+        const medianEl = document.getElementById(`comp-median-${suffix}`);
+        medianEl.textContent = bt ? fmt(bt.median_at_actual) : 'N/A';
+        medianEl.style.color = '';
+
+        // CI 95% range
+        const rangeEl = document.getElementById(`comp-range-${suffix}`);
+        rangeEl.textContent = bt
+            ? `${fmt(bt.ci95_lo_at_actual)} – ${fmt(bt.ci95_hi_at_actual)}`
+            : 'N/A';
+    }
+
+    updateCard(7, comp['7_days']);
+    updateCard(15, comp['15_days']);
+    updateCard(30, comp['30_days']);
+
+    document.getElementById('comparison-panel').style.display = 'block';
+}
+
+async function runComparison() {
+    resetSimulation();
+    const loadingEl = document.getElementById('sim-loading');
+    loadingEl.classList.add('active');
+    document.getElementById('comparison-panel').style.display = 'none';
+
+    try {
+        const startDate = document.getElementById('sim-start-date').value;
+        if (!startDate) {
+            showSimError('Vui lòng chọn ngày backtest để so sánh.');
+            loadingEl.classList.remove('active');
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), 180000);  // 3 phút (vì chạy 3 lần)
+
+        const params = new URLSearchParams({ start_date: startDate });
+        const url = `${COMPARE_API_URL}?${params}`;
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Hiển thị panel so sánh
+        updateComparison(data);
+
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            showSimError('Quá thời gian chờ (3 phút). Backend có thể chưa khởi động hoặc quá chậm.');
+        } else if (err.message.includes('fetch') || err.message.includes('Failed')) {
+            showSimError('Không kết nối được backend. Hãy chạy: python python/app.py');
+        } else if (err.message.includes('Vui lòng chọn')) {
+            showSimError(err.message);
+        } else {
+            showSimError(`Lỗi: ${err.message}`);
+        }
+        console.error('Comparison error:', err);
     } finally {
         loadingEl.classList.remove('active');
     }
