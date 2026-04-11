@@ -99,14 +99,14 @@ button.secondary {
 
 /* ── Period buttons ── */
 .time-period-buttons {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     margin-bottom: 20px;
 }
 
 .period-btn {
-    padding: 8px 16px;
+    padding: 8px 4px;
     background: white;
     border: 2px solid #ddd;
     border-radius: 20px;
@@ -116,6 +116,7 @@ button.secondary {
     color: #666;
     transition: all 0.2s;
     white-space: nowrap;
+    text-align: center;
 }
 
 .period-btn:hover {
@@ -624,11 +625,12 @@ body.dark .error {
     }
 
     .time-period-buttons {
+        grid-template-columns: repeat(4, 1fr);
         gap: 6px;
     }
 
     .period-btn {
-        padding: 7px 12px;
+        padding: 7px 4px;
         font-size: 0.8rem;
     }
 
