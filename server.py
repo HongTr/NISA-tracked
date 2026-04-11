@@ -1,19 +1,14 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
+"""
+server.py — Entry point cho Render (gunicorn server:app)
+Toàn bộ logic API nằm trong python/app.py
+"""
+import sys
 import os
 
-app = Flask(__name__)
+# Thêm thư mục python/ vào path để import app.py
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python'))
 
-# Cho phép CORS từ GitHub Pages
-CORS(app, resources={r"/*": {"origins": "*"}})
-
-@app.route('/')
-def hello():
-    return jsonify({"message": "Backend NISA API running on Render!"})
-
-@app.route('/api/health')
-def health():
-    return jsonify({"status": "ok"}), 200
+from app import app  # noqa: F401 — gunicorn dùng biến `app` này
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
