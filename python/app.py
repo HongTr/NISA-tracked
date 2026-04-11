@@ -51,7 +51,11 @@ def fetch_prices(start: datetime, end: datetime) -> pd.Series:
     result = data["chart"]["result"][0]
 
     timestamps   = result["timestamp"]
-    close_prices = result["indicators"]["adjclose"][0]["adjclose"]
+    indicators   = result["indicators"]
+    if "adjclose" in indicators and indicators["adjclose"]:
+        close_prices = indicators["adjclose"][0]["adjclose"]
+    else:
+        close_prices = indicators["quote"][0]["close"]
 
     dates  = pd.to_datetime(timestamps, unit="s", utc=True).tz_convert("America/New_York").normalize()
     series = pd.Series(close_prices, index=dates, name="Close", dtype=float).dropna()

@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install --upgrade pip setuptools wheel && pip install --no-cache-dir -r python/requirements.txt
-    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT server:app
+    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT --chdir python app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
